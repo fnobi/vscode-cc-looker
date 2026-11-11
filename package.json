@@ -1,0 +1,51 @@
+{
+  "name": "cc-looker",
+  "displayName": "CC Looker",
+  "description": "Incrementally search your local Claude Code sessions, grouped by project, and jump straight into one.",
+  "version": "0.0.1",
+  "publisher": "fujisawa",
+  "private": true,
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:cc-looker.openProject"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "cc-looker.openProject",
+        "title": "CC Looker: Open Claude Code Project"
+      }
+    ],
+    "configuration": {
+      "title": "CC Looker",
+      "properties": {
+        "ccLooker.claudeProjectsPath": {
+          "type": "string",
+          "default": "",
+          "description": "Override the path to Claude Code's projects directory. Leave empty to use $CLAUDE_CONFIG_DIR/projects or ~/.claude/projects."
+        },
+        "ccLooker.openInNewWindow": {
+          "type": "boolean",
+          "default": true,
+          "description": "Open the selected project in a new VS Code window instead of replacing the current one."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}
