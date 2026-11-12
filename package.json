@@ -30,6 +30,11 @@
           "default": "",
           "description": "Override the path to Claude Code's projects directory. Leave empty to use $CLAUDE_CONFIG_DIR/projects or ~/.claude/projects."
         },
+        "ccLooker.extraProjectsRoot": {
+          "type": "string",
+          "default": "~/Projects",
+          "description": "Directory whose immediate subdirectories are always listed as projects, even if they have no Claude Code sessions. They're sorted after (and separately from) projects that do have sessions."
+        },
         "ccLooker.openInNewWindow": {
           "type": "boolean",
           "default": true,

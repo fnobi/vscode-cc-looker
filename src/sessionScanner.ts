@@ -8,7 +8,7 @@ export interface ProjectEntry {
   cwd: string;
   dirName: string;
   sessionCount: number;
-  lastActive: Date;
+  lastActive: Date | null;
   snippet: string;
 }
 
@@ -28,6 +28,13 @@ export function resolveProjectsRoot(): string {
   return path.join(os.homedir(), ".claude", "projects");
 }
 
+export function resolveExtraProjectsRoot(): string {
+  const configured = vscode.workspace
+    .getConfiguration("ccLooker")
+    .get<string>("extraProjectsRoot", "~/Projects");
+  return expandHome((configured || "~/Projects").trim());
+}
+
 function expandHome(p: string): string {
   if (p === "~" || p.startsWith("~/")) {
     return path.join(os.homedir(), p.slice(1));
@@ -36,6 +43,15 @@ function expandHome(p: string): string {
 }
 
 export async function listProjects(): Promise<ProjectEntry[]> {
+  const sessionProjects = await listSessionProjects();
+  const knownCwds = new Set(sessionProjects.map((p) => path.resolve(p.cwd)));
+
+  const extraProjects = await listExtraProjectDirs(knownCwds);
+
+  return [...sessionProjects, ...extraProjects];
+}
+
+async function listSessionProjects(): Promise<ProjectEntry[]> {
   const root = resolveProjectsRoot();
 
   let dirents: fs.Dirent[];
@@ -53,7 +69,41 @@ export async function listProjects(): Promise<ProjectEntry[]> {
 
   return entries
     .filter((e): e is ProjectEntry => e !== null)
-    .sort((a, b) => b.lastActive.getTime() - a.lastActive.getTime());
+    .sort((a, b) => (b.lastActive as Date).getTime() - (a.lastActive as Date).getTime());
+}
+
+async function listExtraProjectDirs(
+  knownCwds: Set<string>
+): Promise<ProjectEntry[]> {
+  const root = resolveExtraProjectsRoot();
+
+  let dirents: fs.Dirent[];
+  try {
+    dirents = await fs.promises.readdir(root, { withFileTypes: true });
+  } catch {
+    // The extra-projects root is optional; silently skip if it's missing.
+    return [];
+  }
+
+  const entries = dirents
+    .filter((d) => d.isDirectory() && !d.name.startsWith("."))
+    .map((d) => path.join(root, d.name))
+    .filter((cwd) => !knownCwds.has(path.resolve(cwd)))
+    .map(
+      (cwd): ProjectEntry => ({
+        cwd,
+        dirName: path.basename(cwd),
+        sessionCount: 0,
+        lastActive: null,
+        snippet: "",
+      })
+    );
+
+  entries.sort((a, b) =>
+    a.dirName.localeCompare(b.dirName, undefined, { sensitivity: "base" })
+  );
+
+  return entries;
 }
 
 async function buildProjectEntry(

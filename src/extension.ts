@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 import { listProjects, ProjectEntry } from "./sessionScanner";
 
 interface ProjectQuickPickItem extends vscode.QuickPickItem {
-  project: ProjectEntry;
+  project?: ProjectEntry;
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -29,9 +29,9 @@ async function openProjectCommand(): Promise<void> {
     const projects = await listProjects();
     if (projects.length === 0) {
       quickPick.items = [];
-      quickPick.placeholder = "No Claude Code sessions found.";
+      quickPick.placeholder = "No projects found.";
     } else {
-      quickPick.items = projects.map(toQuickPickItem);
+      quickPick.items = toQuickPickItems(projects);
     }
   } catch (err) {
     quickPick.hide();
@@ -49,7 +49,7 @@ async function openProjectCommand(): Promise<void> {
   quickPick.onDidAccept(() => {
     const selected = quickPick.selectedItems[0];
     quickPick.hide();
-    if (!selected) {
+    if (!selected?.project) {
       return;
     }
     const openInNewWindow = vscode.workspace
@@ -65,13 +65,40 @@ async function openProjectCommand(): Promise<void> {
   quickPick.onDidHide(() => quickPick.dispose());
 }
 
+function toQuickPickItems(projects: ProjectEntry[]): ProjectQuickPickItem[] {
+  const items: ProjectQuickPickItem[] = [];
+  let lastGroupHadSessions: boolean | null = null;
+
+  for (const project of projects) {
+    const hasSessions = project.sessionCount > 0;
+    if (hasSessions !== lastGroupHadSessions) {
+      items.push({
+        label: hasSessions ? "Claude sessions" : "No Claude sessions",
+        kind: vscode.QuickPickItemKind.Separator,
+      });
+      lastGroupHadSessions = hasSessions;
+    }
+    items.push(toQuickPickItem(project));
+  }
+
+  return items;
+}
+
 function toQuickPickItem(project: ProjectEntry): ProjectQuickPickItem {
   const name = path.basename(project.cwd) || project.cwd;
-  const sessionLabel =
-    project.sessionCount === 1
-      ? "1 session"
-      : `${project.sessionCount} sessions`;
-  const detailParts = [sessionLabel, relativeTime(project.lastActive)];
+  const detailParts: string[] = [];
+  if (project.sessionCount > 0) {
+    const sessionLabel =
+      project.sessionCount === 1
+        ? "1 session"
+        : `${project.sessionCount} sessions`;
+    detailParts.push(sessionLabel);
+    if (project.lastActive) {
+      detailParts.push(relativeTime(project.lastActive));
+    }
+  } else {
+    detailParts.push("No Claude sessions yet");
+  }
   if (project.snippet) {
     detailParts.push(`"${project.snippet}"`);
   }
